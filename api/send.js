@@ -32,9 +32,7 @@ export default async function handler(req, res) {
         if (data.ok) {
           return res.status(200).json(data);
         }
-      } catch (e) {
-        // пробуем следующий
-      }
+      } catch (e) {}
     }
 
     return res.status(500).json({ error: "Vercel: all mirrors failed" });
