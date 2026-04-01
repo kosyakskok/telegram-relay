@@ -1,65 +1,44 @@
 export default async function handler(req, res) {
-  // CORS для Vercel
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Only POST allowed" });
   }
 
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-
-  if (!token || !chatId) {
-    return res.status(500).json({ error: "Missing Telegram credentials" });
-  }
-
-  let text;
-
   try {
-    // Vercel НЕ парсит body автоматически — нужно вручную
-    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-    text = body.text;
-  } catch (e) {
-    return res.status(400).json({ error: "Invalid JSON" });
-  }
+    const { text } = req.body;
 
-  if (!text) {
-    return res.status(400).json({ error: "Text is required" });
-  }
+    const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+    const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-  try {
-    const url = `https://telegg.ru/orig/bot${token}/sendMessage`;
+    const mirrors = [
+      "https://api.telegram.org",
+      "https://api.telegram.org.ru",
+      "https://api.gotg.pro",
+    ];
 
-    const tgResponse = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: "HTML",
-      }),
-    });
+    for (const base of mirrors) {
+      try {
+        const r = await fetch(`${base}/bot${TOKEN}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: CHAT_ID,
+            text,
+            parse_mode: "HTML",
+          }),
+        });
 
-    const data = await tgResponse.json().catch(() => null);
+        const data = await r.json();
 
-    if (!data || !data.ok) {
-      return res.status(500).json({
-        error: "Telegram error",
-        details: data || "No response",
-      });
+        if (data.ok) {
+          return res.status(200).json(data);
+        }
+      } catch (e) {
+        // пробуем следующий
+      }
     }
 
-    return res.status(200).json({ ok: true });
-  } catch (error) {
-    return res.status(500).json({
-      error: "Server error",
-      details: error.message,
-    });
+    return res.status(500).json({ error: "Vercel: all mirrors failed" });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
   }
 }
