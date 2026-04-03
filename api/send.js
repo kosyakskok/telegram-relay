@@ -4,16 +4,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { phone } = req.body;
+    const { text } = req.body;
 
-    if (!phone) {
-      return res.status(400).json({ error: "Phone is required" });
+    if (!text) {
+      return res.status(400).json({ error: "Text is required" });
     }
 
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
 
-    const text = `📞 Новый номер: ${phone}`;
+    if (!token || !chatId) {
+      return res.status(500).json({ error: "Missing Telegram credentials" });
+    }
 
     const telegramUrl = `https://api.telegram.org/bot${token}/sendMessage`;
 
@@ -33,6 +35,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ ok: true });
+
   } catch (err) {
     return res.status(500).json({ error: "Server error", details: err.message });
   }
